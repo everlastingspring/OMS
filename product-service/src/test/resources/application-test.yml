@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:oms_product_test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+    show-sql: false
+
+oms:
+  jwt:
+    secret: test-only-secret-key-at-least-32-bytes-long-value
+    expiration-ms: 3600000
+    issuer: oms-test
+  internal:
+    api-key: test-internal-key
+
+logging:
+  level:
+    root: WARN
+    com.oms: INFO

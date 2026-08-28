@@ -1,0 +1,73 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /
+  error:
+    include-message: always
+    include-binding-errors: always
+
+spring:
+  application:
+    name: product-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/oms_product?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${SPRING_DATASOURCE_USERNAME:oms}
+    password: ${SPRING_DATASOURCE_PASSWORD:oms123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      pool-name: product-service-pool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+
+  jpa:
+    # The authoritative DDL is sql/init/01_schema.sql, loaded by MySQL on first
+    # boot. 'update' is used here so a fresh clone still starts without running
+    # compose first; switch to 'validate' once your schema has settled.
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+oms:
+  jwt:
+    secret: ${OMS_JWT_SECRET:local-development-secret-key-at-least-32-bytes-long}
+    expiration-ms: 3600000
+    issuer: oms
+  internal:
+    api-key: ${OMS_INTERNAL_API_KEY:oms-internal-shared-key}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    root: INFO
+    com.oms: DEBUG
+    org.hibernate.SQL: INFO
+    org.springframework.security: INFO
