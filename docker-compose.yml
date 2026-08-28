@@ -1,0 +1,184 @@
+# =====================================================================
+# Order Management System - local infrastructure and services
+# =====================================================================
+# Profiles keep the memory footprint sane on a 16 GB (or 8 GB) laptop:
+#
+#   infra      MySQL + MongoDB          -> everything Phases 0-2 need
+#   messaging  Kafka + Kafka UI + SQS    -> only needed from Phase 3
+#   apps       user-service + product-service (requires `mvn clean package` first)
+#
+#   docker compose --profile infra up -d
+#   docker compose --profile infra --profile messaging up -d
+#   docker compose --profile infra --profile apps up -d --build
+# =====================================================================
+
+services:
+
+  # ------------------------------------------------------------------
+  # MySQL - three schemas, created and seeded by sql/init on first boot
+  # ------------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: oms-mysql
+    profiles: ["infra"]
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: oms
+      MYSQL_PASSWORD: oms123
+      MYSQL_DATABASE: oms_user
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    mem_limit: 768m
+    networks: [oms-net]
+
+  # ------------------------------------------------------------------
+  # MongoDB - audit logs, activity history, application logs (Phase 4)
+  # ------------------------------------------------------------------
+  mongodb:
+    image: mongo:6.0
+    container_name: oms-mongodb
+    profiles: ["infra"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+      MONGO_INITDB_DATABASE: oms_audit
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    mem_limit: 512m
+    networks: [oms-net]
+
+  # ------------------------------------------------------------------
+  # Kafka in KRaft mode - no ZooKeeper (Phase 3+)
+  # From the host, connect to localhost:29092.
+  # From inside the compose network, connect to kafka:9092.
+  # ------------------------------------------------------------------
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: oms-kafka
+    profiles: ["messaging"]
+    ports:
+      - "29092:29092"
+    environment:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    mem_limit: 1g
+    networks: [oms-net]
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: oms-kafka-ui
+    profiles: ["messaging"]
+    depends_on: [kafka]
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: oms-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    mem_limit: 384m
+    networks: [oms-net]
+
+  # ------------------------------------------------------------------
+  # LocalStack - Amazon SQS simulation, including real DLQ redrive (Phase 4)
+  # ------------------------------------------------------------------
+  localstack:
+    image: localstack/localstack:3.4
+    container_name: oms-localstack
+    profiles: ["messaging"]
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: sqs
+      DEBUG: "0"
+      AWS_DEFAULT_REGION: ap-south-1
+      LOCALSTACK_HOST: localhost
+    volumes:
+      - ./localstack/init:/etc/localstack/init/ready.d:ro
+    mem_limit: 512m
+    networks: [oms-net]
+
+  # ------------------------------------------------------------------
+  # Application services
+  # Run `mvn clean package -DskipTests` at the repo root before --build.
+  # ------------------------------------------------------------------
+  user-service:
+    build:
+      context: ./user-service
+    image: oms/user-service:1.0.0
+    container_name: oms-user-service
+    profiles: ["apps"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/oms_user?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: oms
+      SPRING_DATASOURCE_PASSWORD: oms123
+      OMS_JWT_SECRET: docker-local-development-secret-key-min-32-bytes
+      OMS_INTERNAL_API_KEY: oms-internal-shared-key
+      JAVA_OPTS: "-Xms128m -Xmx320m"
+    mem_limit: 512m
+    networks: [oms-net]
+
+  product-service:
+    build:
+      context: ./product-service
+    image: oms/product-service:1.0.0
+    container_name: oms-product-service
+    profiles: ["apps"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/oms_product?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: oms
+      SPRING_DATASOURCE_PASSWORD: oms123
+      OMS_JWT_SECRET: docker-local-development-secret-key-min-32-bytes
+      OMS_INTERNAL_API_KEY: oms-internal-shared-key
+      JAVA_OPTS: "-Xms128m -Xmx320m"
+    mem_limit: 512m
+    networks: [oms-net]
+
+volumes:
+  mysql-data:
+  mongo-data:
+
+networks:
+  oms-net:
+    driver: bridge
