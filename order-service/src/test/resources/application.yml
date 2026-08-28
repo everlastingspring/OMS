@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  kafka:
+    bootstrap-servers: localhost:9999
+
+cloud:
+  aws:
+    stack:
+      auto: false
+    region:
+      static: ap-south-1
+    credentials:
+      access-key: test
+      secret-key: test
+    sqs:
+      endpoint: http://localhost:4566
+
+oms:
+  jwt:
+    secret: test-secret-key-at-least-32-bytes-long-for-tests
+    expiration-ms: 3600000
+    issuer: oms
+  internal:
+    api-key: test-internal-key
+  services:
+    user-service-url: http://localhost:8081
+    product-service-url: http://localhost:8082
+  sqs:
+    order-notifications-queue: oms-order-notifications

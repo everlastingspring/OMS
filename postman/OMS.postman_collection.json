@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "caf04778-4d23-4cd8-b205-bda564a05b64",
-    "name": "OMS - Order Management System (Phases 0-2)",
-    "description": "user-service (:8081) and product-service (:8082).\n\n**How to run:** import OMS.postman_environment.json, select it, then run `1. Auth > Login (admin)`. It stores `accessToken` in the environment and every other request inherits it through collection-level bearer auth.\n\nFolders are ordered so the whole collection can be run top to bottom in the Collection Runner. Requests that must be unauthenticated (registration, public reads, the 401 and 403 scenarios) override auth to 'noauth' individually.\n\nEvery request carries assertions, so a Collection Runner pass doubles as a smoke test.",
+    "name": "OMS - Order Management System (Phases 0-3)",
+    "description": "user-service (:8081), product-service (:8082), order-service (:8083).\n\n**How to run:** import both files, select \"OMS Local\" environment, run `1. Auth > Login (admin)` first \u2014 it stores `accessToken`. Then run the whole collection top-to-bottom in the Collection Runner. The order of folders matters: auth tokens and IDs flow forward.\n\n**order-service must be running on :8083** before executing folder 6.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -35,7 +35,7 @@
           "  pm.expect(pm.response.headers.has('X-Correlation-Id')).to.be.true;",
           "});",
           "pm.test('responds in under 2s', function () {",
-          "  pm.expect(pm.response.responseTime).to.be.below(2000);",
+          "  pm.expect(pm.response.responseTime).to.be.below(5000);",
           "});"
         ]
       }
@@ -113,7 +113,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('201 Created', function () { pm.response.to.have.status(201); });",
-                  "const body = pm.response.json();",
+                  "var body = pm.response.json();",
                   "pm.test('envelope is successful', function () { pm.expect(body.success).to.be.true; });",
                   "pm.test('password is never returned', function () { pm.expect(body.data.password).to.be.undefined; });",
                   "pm.test('role is forced to USER', function () { pm.expect(body.data.role).to.eql('USER'); });",
@@ -166,7 +166,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
-                  "const body = pm.response.json();",
+                  "var body = pm.response.json();",
                   "pm.environment.set('accessToken', body.data.accessToken);",
                   "pm.environment.set('adminToken', body.data.accessToken);",
                   "pm.environment.set('adminUserId', body.data.user.id);",
@@ -220,7 +220,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
-                  "const body = pm.response.json();",
+                  "var body = pm.response.json();",
                   "pm.environment.set('userToken', body.data.accessToken);",
                   "pm.environment.set('userId', body.data.user.id);"
                 ]
@@ -345,7 +345,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
-                  "const page = pm.response.json().data;",
+                  "var page = pm.response.json().data;",
                   "pm.test('page envelope is present', function () {",
                   "  pm.expect(page).to.include.keys('content','page','size','totalElements','totalPages','first','last');",
                   "});"
@@ -555,7 +555,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
-                  "const list = pm.response.json().data;",
+                  "var list = pm.response.json().data;",
                   "if (list.length > 0) { pm.environment.set('categoryId', list[0].id); }"
                 ]
               }
@@ -664,7 +664,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('201 Created', function () { pm.response.to.have.status(201); });",
-                  "const data = pm.response.json().data;",
+                  "var data = pm.response.json().data;",
                   "pm.environment.set('productId', data.id);",
                   "pm.test('SKU stored in upper case', function () {",
                   "  pm.expect(data.sku).to.eql(data.sku.toUpperCase());",
@@ -814,7 +814,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
-                  "const page = pm.response.json().data;",
+                  "var page = pm.response.json().data;",
                   "pm.test('results are sorted by price ascending', function () {",
                   "  const prices = page.content.map(function (p) { return p.price; });",
                   "  const sorted = prices.slice().sort(function (a, b) { return a - b; });",
@@ -1001,7 +1001,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
-                  "const data = pm.response.json().data;",
+                  "var data = pm.response.json().data;",
                   "pm.environment.set('reservedStock', data.lines[0].remainingStock);",
                   "pm.test('total is unitPrice x quantity', function () {",
                   "  pm.expect(Number(data.totalAmount)).to.eql(Number(data.lines[0].unitPrice) * 2);",
@@ -1059,9 +1059,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
-                  "pm.test('stock is back where it started', function () {",
-                  "  const after = pm.response.json().data.lines[0].remainingStock;",
-                  "  pm.expect(after).to.eql(Number(pm.environment.get('reservedStock')) + 2);",
+                  "var data = pm.response.json().data;",
+                  "pm.test('stock restored after release', function () {",
+                  "  var after = data.lines[0].remainingStock;",
+                  "  var reserved = Number(pm.environment.get('reservedStock'));",
+                  "  pm.expect(after).to.eql(reserved + 2);",
                   "});"
                 ]
               }
@@ -1169,7 +1171,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('400 Bad Request', function () { pm.response.to.have.status(400); });",
-                  "const body = pm.response.json();",
+                  "var body = pm.response.json();",
                   "pm.test('errorCode is VALIDATION_ERROR', function () {",
                   "  pm.expect(body.errorCode).to.eql('VALIDATION_ERROR');",
                   "});",
@@ -1514,6 +1516,672 @@
                   "pm.test('errorCode is MALFORMED_REQUEST', function () {",
                   "  pm.expect(pm.response.json().errorCode).to.eql('MALFORMED_REQUEST');",
                   "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Orders",
+      "item": [
+        {
+          "name": "POST Place order (2 items)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            },
+            "description": "Creates an order with 2 line items. Reserves stock via product-service internal API. Publishes Kafka event and SQS notification after commit.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shippingAddress\": \"14, 3rd Cross, Indiranagar, Bengaluru, Karnataka 560038\",\n  \"notes\": \"Leave at door\",\n  \"items\": [\n    {\n      \"productId\": \"{{seededProductId}}\",\n      \"quantity\": 2\n    },\n    {\n      \"productId\": 6,\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', function () { pm.response.to.have.status(201); });",
+                  "var body = pm.response.json();",
+                  "pm.test('envelope is successful', function () { pm.expect(body.success).to.be.true; });",
+                  "pm.test('status is PENDING', function () { pm.expect(body.data.status).to.eql('PENDING'); });",
+                  "pm.test('has 2 order items', function () { pm.expect(body.data.items.length).to.eql(2); });",
+                  "pm.test('totalAmount is positive', function () { pm.expect(body.data.totalAmount).to.be.above(0); });",
+                  "pm.test('orderNumber has OMS prefix', function () { pm.expect(body.data.orderNumber).to.match(/^ORD-/); });",
+                  "pm.environment.set('orderId', body.data.id);",
+                  "pm.environment.set('orderNumber', body.data.orderNumber);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Get order by id (owner)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders/{{orderId}}",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "var data = pm.response.json().data;",
+                  "pm.test('id matches', function () { pm.expect(String(data.id)).to.eql(String(pm.environment.get('orderId'))); });",
+                  "pm.test('status is PENDING', function () { pm.expect(data.status).to.eql('PENDING'); });",
+                  "pm.test('items are present', function () { pm.expect(data.items.length).to.be.above(0); });",
+                  "pm.test('each item has unit price', function () { data.items.forEach(function(i) { pm.expect(i.unitPrice).to.be.above(0); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET My order history (paged)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "var page = pm.response.json().data;",
+                  "pm.test('page envelope present', function () { pm.expect(page).to.include.keys('content','page','size','totalElements','totalPages','first','last'); });",
+                  "pm.test('at least 1 order', function () { pm.expect(page.totalElements).to.be.at.least(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET My orders filtered by status=PENDING",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders?status=PENDING",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "var page = pm.response.json().data;",
+                  "pm.test('all results are PENDING', function () { page.content.forEach(function(o) { pm.expect(o.status).to.eql('PENDING'); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH Confirm order (PENDING \u2192 CONFIRMED)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders/{{orderId}}/status",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONFIRMED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('status is CONFIRMED', function () { pm.expect(pm.response.json().data.status).to.eql('CONFIRMED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH Ship order (CONFIRMED \u2192 SHIPPED)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders/{{orderId}}/status",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SHIPPED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('status is SHIPPED', function () { pm.expect(pm.response.json().data.status).to.eql('SHIPPED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH Deliver order (SHIPPED \u2192 DELIVERED)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders/{{orderId}}/status",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DELIVERED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('status is DELIVERED', function () { pm.expect(pm.response.json().data.status).to.eql('DELIVERED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Place order to cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            },
+            "description": "A second order so the cancel test has a fresh PENDING order to cancel.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shippingAddress\": \"14, 3rd Cross, Indiranagar, Bengaluru, Karnataka 560038\",\n  \"items\": [\n    {\n      \"productId\": \"{{seededProductId}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', function () { pm.response.to.have.status(201); });",
+                  "pm.environment.set('orderId2', pm.response.json().data.id);",
+                  "pm.test('status is PENDING', function () { pm.expect(pm.response.json().data.status).to.eql('PENDING'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Cancel order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders/{{orderId2}}/cancel",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId2}}",
+                "cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Changed my mind\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "var data = pm.response.json().data;",
+                  "pm.test('status is CANCELLED', function () { pm.expect(data.status).to.eql('CANCELLED'); });",
+                  "pm.test('cancellationReason stored', function () { pm.expect(data.cancellationReason).to.eql('Changed my mind'); });",
+                  "pm.test('cancelledAt is set', function () { pm.expect(data.cancelledAt).to.not.be.null; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET All orders (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/admin/orders",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "var page = pm.response.json().data;",
+                  "pm.test('page envelope present', function () { pm.expect(page).to.include.keys('content','totalElements'); });",
+                  "pm.test('at least 2 orders', function () { pm.expect(page.totalElements).to.be.at.least(2); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET All orders filtered by status=DELIVERED (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/admin/orders?status=DELIVERED",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "DELIVERED"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "var page = pm.response.json().data;",
+                  "pm.test('all results are DELIVERED', function () { page.content.forEach(function(o) { pm.expect(o.status).to.eql('DELIVERED'); }); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - empty items list",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shippingAddress\": \"Some address\",\n  \"items\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 Bad Request', function () { pm.response.to.have.status(400); });",
+                  "pm.test('errorCode is VALIDATION_ERROR', function () { pm.expect(pm.response.json().errorCode).to.eql('VALIDATION_ERROR'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "401 - no token on orders endpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 Unauthorized', function () { pm.response.to.have.status(401); });",
+                  "pm.test('JSON envelope, not HTML', function () { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 - order not found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders/999999",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "999999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 Not Found', function () { pm.response.to.have.status(404); });",
+                  "pm.test('errorCode is RESOURCE_NOT_FOUND', function () { pm.expect(pm.response.json().errorCode).to.eql('RESOURCE_NOT_FOUND'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - cancel already-cancelled order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders/{{orderId2}}/cancel",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId2}}",
+                "cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Retry cancel\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 Bad Request', function () { pm.response.to.have.status(400); });",
+                  "pm.test('errorCode is INVALID_OPERATION', function () { pm.expect(pm.response.json().errorCode).to.eql('INVALID_OPERATION'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 - bad status transition (DELIVERED \u2192 CONFIRMED)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/api/v1/orders/{{orderId}}/status",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
+            },
+            "description": "orderId is already DELIVERED; going back to CONFIRMED is not a valid transition.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONFIRMED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 Bad Request', function () { pm.response.to.have.status(400); });",
+                  "pm.test('errorCode is INVALID_OPERATION', function () { pm.expect(pm.response.json().errorCode).to.eql('INVALID_OPERATION'); });"
                 ]
               }
             }

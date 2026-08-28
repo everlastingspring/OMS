@@ -1,0 +1,93 @@
+server:
+  port: 8083
+  servlet:
+    context-path: /
+  error:
+    include-message: always
+    include-binding-errors: always
+
+spring:
+  application:
+    name: order-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/oms_order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${SPRING_DATASOURCE_USERNAME:oms}
+    password: ${SPRING_DATASOURCE_PASSWORD:oms123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      pool-name: order-service-pool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+cloud:
+  aws:
+    sqs:
+      endpoint: ${AWS_SQS_ENDPOINT:http://localhost:4566}
+    region:
+      static: ap-south-1
+    stack:
+      auto: false
+    credentials:
+      access-key: test
+      secret-key: test
+
+oms:
+  jwt:
+    secret: ${OMS_JWT_SECRET:local-development-secret-key-at-least-32-bytes-long}
+    expiration-ms: 3600000
+    issuer: oms
+  internal:
+    api-key: ${OMS_INTERNAL_API_KEY:oms-internal-shared-key}
+  services:
+    user-service-url: ${USER_SERVICE_URL:http://localhost:8081}
+    product-service-url: ${PRODUCT_SERVICE_URL:http://localhost:8082}
+  sqs:
+    order-notifications-queue: oms-order-notifications
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    root: INFO
+    com.oms: DEBUG
+    org.hibernate.SQL: INFO
+    org.springframework.security: INFO
