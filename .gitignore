@@ -12,3 +12,9 @@ logs/
 .vscode/
 .DS_Store
 .env
+
+# Claude Code
+CLAUDE.md
+.claude/
+_to_delete/
+docs/PRD.md
