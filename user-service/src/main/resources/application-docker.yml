@@ -1,0 +1,8 @@
+# Active when SPRING_PROFILES_ACTIVE=docker. Connection details arrive as
+# environment variables from docker-compose.yml, so only overrides live here.
+logging:
+  level:
+    root: INFO
+    com.oms: INFO
+  file:
+    name: /var/log/oms/user-service.log
