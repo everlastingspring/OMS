@@ -3,11 +3,10 @@
 A Java 8 / Spring Boot microservices Order Management System: user accounts, a product
 catalogue, orders, and an audit trail driven by Kafka and Amazon SQS.
 
-> **Status — Phases 0–2 delivered.** `oms-common`, `user-service` and `product-service`
-> are complete and runnable. `order-service` (Kafka producer, Resilience4j) and
-> `audit-service` (MongoDB audit, SQS + DLQ) are Phases 3 and 4 and are not in this
-> drop. The MySQL schema, the report queries and the compose file already cover all
-> four services so nothing has to be rewritten when they land.
+> **Status — Phases 0–4 complete.** All five modules (`oms-common`, `user-service`,
+> `product-service`, `order-service`, `audit-service`) are implemented and runnable.
+> Kafka event publishing, Resilience4j circuit breakers, MongoDB audit trail, and
+> SQS consumer are all wired and verified.
 
 ---
 
@@ -43,8 +42,8 @@ Order-management/
 ├── oms-common/             shared library (no main class)
 ├── user-service/     :8081 registration, login, JWT, profiles, addresses
 ├── product-service/  :8082 catalogue, search, stock reservation
-├── order-service/    :8083 Phase 3
-├── audit-service/    :8084 Phase 4
+├── order-service/    :8083 orders, stock reservation, Kafka producer, SQS producer
+├── audit-service/    :8084 Kafka consumer → MongoDB, SQS consumer, audit REST API
 ├── sql/init/               schema + seed, auto-loaded by MySQL on first boot
 ├── sql/reports.sql         the five reporting queries
 ├── localstack/init/        SQS queue + DLQ creation

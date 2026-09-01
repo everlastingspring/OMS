@@ -1,0 +1,68 @@
+server:
+  port: 8084
+  servlet:
+    context-path: /
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: audit-service
+
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:root@localhost:27017/oms_audit?authSource=admin}
+      auto-index-creation: false
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+cloud:
+  aws:
+    sqs:
+      endpoint: ${AWS_SQS_ENDPOINT:http://localhost:4566}
+    region:
+      static: ap-south-1
+    stack:
+      auto: false
+    credentials:
+      access-key: test
+      secret-key: test
+
+oms:
+  jwt:
+    secret: ${OMS_JWT_SECRET:local-development-secret-key-at-least-32-bytes-long}
+    expiration-ms: 3600000
+    issuer: oms
+  internal:
+    api-key: ${OMS_INTERNAL_API_KEY:oms-internal-shared-key}
+  sqs:
+    order-notifications-queue: oms-order-notifications
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    root: INFO
+    com.oms: DEBUG
+    org.springframework.kafka: INFO
