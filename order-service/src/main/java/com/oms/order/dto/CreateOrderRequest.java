@@ -1,5 +1,6 @@
 package com.oms.order.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -17,7 +18,9 @@ public class CreateOrderRequest {
     private List<OrderItemRequest> items;
 
     @NotBlank(message = "shippingAddress is required")
+    @Schema(example = "123 Main Street, Bangalore, Karnataka 560001")
     private String shippingAddress;
 
+    @Schema(example = "Please deliver between 9am-6pm")
     private String notes;
 }
