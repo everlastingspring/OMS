@@ -130,6 +130,14 @@ public class GlobalExceptionHandler {
                         "ENDPOINT_NOT_FOUND"), request);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex,
+                                                                   HttpServletRequest request) {
+        log.warn("Illegal argument on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.BAD_REQUEST,
+                ApiResponse.error(ex.getMessage(), "INVALID_ARGUMENT"), request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception on {} {}", request.getMethod(), request.getRequestURI(), ex);

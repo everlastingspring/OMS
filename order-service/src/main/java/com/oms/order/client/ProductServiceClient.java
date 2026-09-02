@@ -1,6 +1,8 @@
 package com.oms.order.client;
 
 import com.oms.common.dto.ApiResponse;
+import com.oms.common.exception.BusinessException;
+import com.oms.common.exception.ServiceUnavailableException;
 import com.oms.order.client.dto.StockOperationRequest;
 import com.oms.order.client.dto.StockOperationResponse;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -34,11 +36,10 @@ public class ProductServiceClient {
                             () -> doReserveStock(request)));
         } catch (Exception ex) {
             log.error("reserve-stock failed for order {}: {}", request.getOrderReference(), ex.getMessage());
-            // Re-throw so order creation rolls back
-            if (ex instanceof RuntimeException) {
-                throw (RuntimeException) ex;
+            if (ex instanceof BusinessException) {
+                throw (BusinessException) ex;
             }
-            throw new RuntimeException(ex);
+            throw new ServiceUnavailableException("product-service");
         }
     }
 

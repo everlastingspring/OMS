@@ -1,6 +1,7 @@
 package com.oms.product.entity;
 
 import com.oms.common.exception.InsufficientStockException;
+import com.oms.common.exception.InvalidOperationException;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -74,7 +75,7 @@ public class Product {
     /** Domain behaviour lives on the entity so no caller can decrement past zero. */
     public void reserve(int quantity) {
         if (quantity <= 0) {
-            throw new IllegalArgumentException("Reserved quantity must be positive");
+            throw new InsufficientStockException("Reserved quantity must be positive");
         }
         if (stockQuantity < quantity) {
             throw new InsufficientStockException(String.format(
@@ -86,7 +87,7 @@ public class Product {
 
     public void release(int quantity) {
         if (quantity <= 0) {
-            throw new IllegalArgumentException("Released quantity must be positive");
+            throw new InvalidOperationException("Released quantity must be positive");
         }
         stockQuantity = stockQuantity + quantity;
     }
