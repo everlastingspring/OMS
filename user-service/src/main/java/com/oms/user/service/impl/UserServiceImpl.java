@@ -85,7 +85,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public List<AddressResponse> getAddresses(Long userId) {
         requireUser(userId);
-        return UserMapper.toAddressResponses(addressRepository.findByUserId(userId));
+        return UserMapper.toAddressResponses(addressRepository.findByUserIdAndActiveTrue(userId));
     }
 
     @Override
@@ -121,10 +121,10 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void deleteAddress(Long userId, Long addressId) {
-        Address address = addressRepository.findByIdAndUserId(addressId, userId)
+        Address address = addressRepository.findByIdAndUserIdAndActiveTrue(addressId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Address", "id", addressId));
-        addressRepository.delete(address);
-        log.info("Deleted address id={} for user id={}", addressId, userId);
+        address.setActive(false);
+        log.info("Soft-deleted address id={} for user id={}", addressId, userId);
     }
 
     @Override

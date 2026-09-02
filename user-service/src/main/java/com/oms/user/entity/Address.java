@@ -53,6 +53,9 @@ public class Address {
     @Column(name = "is_default", nullable = false)
     private boolean defaultAddress = false;
 
+    @Column(nullable = false)
+    private boolean active = true;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -139,6 +142,14 @@ public class Address {
 
     public void setDefaultAddress(boolean defaultAddress) {
         this.defaultAddress = defaultAddress;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public LocalDateTime getCreatedAt() {
