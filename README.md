@@ -42,7 +42,7 @@ Order-management/
 ├── docker-compose.yml      MySQL, MongoDB, Kafka, Kafka UI, LocalStack
 ├── oms-common/             shared library (JWT, exceptions, filters, event models)
 ├── user-service/     :8081 registration, JWT login, profiles, addresses
-├── product-service/  :8082 catalogue, stock management (coming next)
+├── product-service/  :8082 catalogue, stock management
 ├── order-service/    :8083 order lifecycle, Kafka producer   (Phase 3)
 ├── audit-service/    :8084 Kafka consumer → MongoDB          (Phase 4)
 ├── sql/
